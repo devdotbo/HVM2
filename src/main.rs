@@ -19,6 +19,11 @@ extern "C" {
   fn hvm_cu(book_buffer: *const u32);
 }
 
+#[cfg(feature = "metal")]
+extern "C" {
+  fn hvm_mtl(book_buffer: *const u32);
+}
+
 fn main() {
   let matches = Command::new("hvm")
     .about("HVM2: Higher-order Virtual Machine 2 (32-bit Version)")
@@ -47,6 +52,14 @@ fn main() {
           .action(ArgAction::SetTrue)
           .help("Run with IO enabled")))
     .subcommand(
+      Command::new("run-metal")
+        .about("Interprets a file (using Metal)")
+        .arg(Arg::new("file").required(true))
+        .arg(Arg::new("io")
+          .long("io")
+          .action(ArgAction::SetTrue)
+          .help("Run with IO enabled")))
+    .subcommand(
       Command::new("gen-c")
         .about("Compiles a file with IO (to standalone C)")
         .arg(Arg::new("file").required(true))
@@ -57,6 +70,14 @@ fn main() {
     .subcommand(
       Command::new("gen-cu")
         .about("Compiles a file (to standalone CUDA)")
+        .arg(Arg::new("file").required(true))
+        .arg(Arg::new("io")
+          .long("io")
+          .action(ArgAction::SetTrue)
+          .help("Generate with IO enabled")))
+    .subcommand(
+      Command::new("gen-metal")
+        .about("Compiles a file (to standalone Metal)")
         .arg(Arg::new("file").required(true))
         .arg(Arg::new("io")
           .long("io")
@@ -96,6 +117,21 @@ fn main() {
       }
       #[cfg(not(feature = "cuda"))]
       println!("CUDA runtime not available!\n If you've installed CUDA and nvcc after HVM, please reinstall HVM.");
+    }
+    Some(("run-metal", sub_matches)) => {
+      let file = sub_matches.get_one::<String>("file").expect("required");
+      let code = fs::read_to_string(file).expect("Unable to read file");
+      let book = ast::Book::parse(&code).unwrap_or_else(|er| panic!("{}",er)).build();
+      let mut data : Vec<u8> = Vec::new();
+      book.to_buffer(&mut data);
+      #[cfg(feature = "metal")]
+      unsafe {
+        hvm_mtl(data.as_mut_ptr() as *mut u32);
+      }
+      #[cfg(not(feature = "metal"))]
+      println!(
+        "Metal runtime not available!\n If you're on macOS and have Xcode command line tools installed, please reinstall HVM."
+      );
     }
     Some(("gen-c", sub_matches)) => {
       // Reads book from file
@@ -152,6 +188,14 @@ fn main() {
       let hvm_cu = format!("{hvm_cu}\n\n{}", include_str!("run.cu"));
       let hvm_cu = hvm_cu.replace(r#"#include "hvm.cu""#, "");
       println!("{}", hvm_cu);
+    }
+    Some(("gen-metal", _sub_matches)) => {
+      #[cfg(feature = "metal")]
+      println!("Metal codegen not available yet in this build.");
+      #[cfg(not(feature = "metal"))]
+      println!(
+        "Metal runtime not available!\n If you're on macOS and have Xcode command line tools installed, please reinstall HVM."
+      );
     }
     _ => unreachable!(),
   }
