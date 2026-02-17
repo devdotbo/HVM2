@@ -94,6 +94,7 @@ struct RuntimeState {
   u32 vars_cap;
   u32 rbag_cap;
   u32 max_steps;
+  u32 command;
   u32 error;
   u32 root_var;
   u32 node_head;
@@ -1063,22 +1064,30 @@ kernel void hvm_eval(
     return;
   }
 
-  state->error = ERR_NONE;
-  state->root_var = NONE;
-  state->node_head = 1u;
-  state->vars_head = 1u;
-  state->rbag_len = 0u;
+  if (state->command == 0u) {
+    state->error = ERR_NONE;
+    state->root_var = NONE;
+    state->node_head = 1u;
+    state->vars_head = 1u;
+    state->rbag_len = 0u;
+
+    vars_store(state, vars_buf, ROOT_VAR_ID, NONE);
+    if (state->error != ERR_NONE) {
+      return;
+    }
+
+    if (!push_redex(state, rbag_buf, new_pair(new_port(REF, 0), ROOT))) {
+      return;
+    }
+  } else if (state->command == 1u) {
+    state->error = ERR_NONE;
+  } else {
+    state->error = ERR_BAD_BOOK;
+    return;
+  }
+
   state->steps = 0u;
   state->itrs = 0ul;
-
-  vars_store(state, vars_buf, ROOT_VAR_ID, NONE);
-  if (state->error != ERR_NONE) {
-    return;
-  }
-
-  if (!push_redex(state, rbag_buf, new_pair(new_port(REF, 0), ROOT))) {
-    return;
-  }
 
   thread u32 nloc[MAX_TM_ALLOCS];
   thread u32 vloc[MAX_TM_ALLOCS];
