@@ -189,13 +189,46 @@ fn main() {
       let hvm_cu = hvm_cu.replace(r#"#include "hvm.cu""#, "");
       println!("{}", hvm_cu);
     }
-    Some(("gen-metal", _sub_matches)) => {
-      #[cfg(feature = "metal")]
-      println!("Metal codegen not available yet in this build.");
-      #[cfg(not(feature = "metal"))]
-      println!(
-        "Metal runtime not available!\n If you're on macOS and have Xcode command line tools installed, please reinstall HVM."
+    Some(("gen-metal", sub_matches)) => {
+      // Reads book from file
+      let file = sub_matches.get_one::<String>("file").expect("required");
+      let code = fs::read_to_string(file).expect("Unable to read file");
+      let book = ast::Book::parse(&code).unwrap_or_else(|er| panic!("{}",er)).build();
+
+      // Gets optimal core count
+      let cores = num_cpus::get();
+      let tpcl2 = (cores as f64).log2().floor() as u32;
+
+      // Generates the interpreted book
+      let mut book_buf : Vec<u8> = Vec::new();
+      book.to_buffer(&mut book_buf);
+      let bookb = format!("{:?}", book_buf).replace("[","{").replace("]","}");
+      let bookb = format!("static const u8 BOOK_BUF[] = {};", bookb);
+
+      // Generates the C runtime section
+      let hvm_c = include_str!("hvm.c");
+      let hvm_c = format!("#define IO\n\n{hvm_c}");
+      let hvm_c = hvm_c.replace("///COMPILED_INTERACT_CALL///", &cmp::compile_book(cmp::Target::C, &book));
+      let hvm_c = hvm_c.replace("#define INTERPRETED", "#define COMPILED");
+      let hvm_c = hvm_c.replace("//COMPILED_BOOK_BUF//", &bookb);
+      let hvm_c = hvm_c.replace("#define WITHOUT_MAIN", "#define WITH_MAIN");
+      let hvm_c = hvm_c.replace("#define TPC_L2 0", &format!("#define TPC_L2 {} // {} cores", tpcl2, cores));
+      let run_c = include_str!("run.c").replace(r#"#include "hvm.c""#, "");
+
+      // Embeds shader source for downstream compilation/customization.
+      let metal_src = include_str!("hvm.metal")
+        .replace('\\', r#"\\"#)
+        .replace('\"', "\\\"")
+        .replace('\n', "\\n\"\n\"");
+
+      let out = format!(
+        "#import <Foundation/Foundation.h>\n#import <Metal/Metal.h>\n\n\
+         static const char* HVM_METAL_SRC =\n\"{}\";\n\n\
+         {}\n\n{}",
+        metal_src, hvm_c, run_c
       );
+
+      println!("{}", out);
     }
     _ => unreachable!(),
   }
