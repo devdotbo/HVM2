@@ -48,6 +48,8 @@ hvm gen-cu <file.hvm> # compile to standalone CUDA
 hvm gen-metal <file.hvm> # compile to standalone Objective-C++ with native Metal compute runtime
 ```
 
+`run-metal` and `gen-metal` return a non-zero exit code with an explicit error on unsupported hosts/builds.
+
 All modes produce the same output. The compiled modes require you to compile the
 generated file (with `gcc file.c -o file`, for example), but are faster to run.
 The CUDA versions have much higher peak performance but are less stable. As a

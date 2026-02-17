@@ -1326,18 +1326,18 @@ static bool do_run_io(MetalRuntime* rt) {
   return true;
 }
 
-extern "C" void hvm_mtl(const u32* book_buffer) {
+extern "C" int hvm_mtl(const u32* book_buffer) {
   @autoreleasepool {
     HostBook book;
     if (!load_book(book_buffer, &book)) {
       std::fprintf(stderr, "failed to load book\n");
-      return;
+      return 1;
     }
 
     id<MTLDevice> device = MTLCreateSystemDefaultDevice();
     if (!device) {
       std::fprintf(stderr, "Metal runtime not available!\n No Metal-compatible device was found.\n");
-      return;
+      return 1;
     }
 
     NSError* error = nil;
@@ -1352,38 +1352,38 @@ extern "C" void hvm_mtl(const u32* book_buffer) {
     library = [device newLibraryWithData:lib_data error:&error];
     if (!library) {
       std::fprintf(stderr, "Metal runtime failed to load embedded library: %s\n", [[error localizedDescription] UTF8String]);
-      return;
+      return 1;
     }
 #else
     NSString* source = [NSString stringWithUTF8String:HVM_METAL_SRC];
     if (!source) {
       std::fprintf(stderr, "Metal runtime failed to decode embedded shader source.\n");
-      return;
+      return 1;
     }
     MTLCompileOptions* opts = [[MTLCompileOptions alloc] init];
     library = [device newLibraryWithSource:source options:opts error:&error];
     if (!library) {
       std::fprintf(stderr, "Metal runtime failed to compile embedded source: %s\n", [[error localizedDescription] UTF8String]);
-      return;
+      return 1;
     }
 #endif
 
     id<MTLFunction> kernel = [library newFunctionWithName:@"hvm_eval"];
     if (!kernel) {
       std::fprintf(stderr, "Metal runtime failed to find kernel 'hvm_eval'.\n");
-      return;
+      return 1;
     }
 
     id<MTLComputePipelineState> pipeline = [device newComputePipelineStateWithFunction:kernel error:&error];
     if (!pipeline) {
       std::fprintf(stderr, "Metal runtime failed to create compute pipeline: %s\n", [[error localizedDescription] UTF8String]);
-      return;
+      return 1;
     }
 
     id<MTLCommandQueue> queue = [device newCommandQueue];
     if (!queue) {
       std::fprintf(stderr, "Metal runtime failed to create command queue.\n");
-      return;
+      return 1;
     }
 
     u32 node_cap = clamp_u32(next_pow2_u32(book.total_nodes * 128ull + 65536ull), 1u << 21, 1u << 25);
@@ -1410,7 +1410,7 @@ extern "C" void hvm_mtl(const u32* book_buffer) {
 
     if (!rt.defs_buf || !rt.def_rbag_buf || !rt.def_nodes_buf || !rt.node_buf || !rt.vars_buf || !rt.rbag_buf || !rt.state_buf) {
       std::fprintf(stderr, "Metal runtime failed to allocate buffers.\n");
-      return;
+      return 1;
     }
 
     if (!book.defs.empty()) {
@@ -1439,12 +1439,12 @@ extern "C" void hvm_mtl(const u32* book_buffer) {
 
     if (!rt_dispatch_normalize(&rt, 0)) {
       std::fprintf(stderr, "Metal runtime error: %s (code %u, step %u)\n", metal_error_message(rt.state.error), rt.state.error, rt.state.steps);
-      return;
+      return 1;
     }
 
     if (!do_run_io(&rt)) {
       std::fprintf(stderr, "Metal runtime error: %s (code %u, step %u)\n", metal_error_message(rt.state.error), rt.state.error, rt.state.steps);
-      return;
+      return 1;
     }
 
     auto end = std::chrono::steady_clock::now();
@@ -1453,7 +1453,7 @@ extern "C" void hvm_mtl(const u32* book_buffer) {
     Port result = rt_enter(&rt, ROOT);
     if (rt.state.error != ERR_NONE) {
       std::fprintf(stderr, "Metal runtime error: %s (code %u, step %u)\n", metal_error_message(rt.state.error), rt.state.error, rt.state.steps);
-      return;
+      return 1;
     }
 
     std::printf("Result: ");
@@ -1464,5 +1464,6 @@ extern "C" void hvm_mtl(const u32* book_buffer) {
     std::printf("- TIME: %.2fs\n", duration);
     double mips = duration > 0.0 ? (double(rt.total_itrs) / duration / 1000000.0) : 0.0;
     std::printf("- MIPS: %.2f\n", mips);
+    return 0;
   }
 }

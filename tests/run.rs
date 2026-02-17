@@ -22,6 +22,56 @@ fn test_run_examples() {
   test_dir(&manifest_relative("examples/"));
 }
 
+#[test]
+#[cfg(not(all(target_os = "macos", target_arch = "aarch64", feature = "metal")))]
+fn test_run_metal_unsupported_hard_error() {
+  let path = manifest_relative("tests/programs/hello-world.hvm");
+  let output = Command::new(env!("CARGO_BIN_EXE_hvm"))
+    .arg("run-metal")
+    .arg(&path)
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .output()
+    .unwrap();
+
+  assert!(
+    !output.status.success(),
+    "run-metal must fail on unsupported host/runtime builds"
+  );
+
+  let stderr = String::from_utf8_lossy(&output.stderr);
+  assert!(
+    stderr.contains("supports only Apple Silicon on macOS")
+      || stderr.contains("built without Metal runtime support"),
+    "unexpected run-metal error output: {stderr}"
+  );
+}
+
+#[test]
+#[cfg(not(all(target_os = "macos", target_arch = "aarch64", feature = "metal")))]
+fn test_gen_metal_unsupported_hard_error() {
+  let path = manifest_relative("tests/programs/hello-world.hvm");
+  let output = Command::new(env!("CARGO_BIN_EXE_hvm"))
+    .arg("gen-metal")
+    .arg(&path)
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .output()
+    .unwrap();
+
+  assert!(
+    !output.status.success(),
+    "gen-metal must fail on unsupported host/runtime builds"
+  );
+
+  let stderr = String::from_utf8_lossy(&output.stderr);
+  assert!(
+    stderr.contains("supports only Apple Silicon on macOS")
+      || stderr.contains("built without Metal runtime support"),
+    "unexpected gen-metal error output: {stderr}"
+  );
+}
+
 fn test_dir(dir: &Path) {
   insta::glob!(dir, "**/*.hvm", test_file)
 }

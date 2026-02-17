@@ -21,7 +21,7 @@ extern "C" {
 
 #[cfg(feature = "metal")]
 extern "C" {
-  fn hvm_mtl(book_buffer: *const u32);
+  fn hvm_mtl(book_buffer: *const u32) -> i32;
 }
 
 fn main() {
@@ -124,14 +124,19 @@ fn main() {
       let book = ast::Book::parse(&code).unwrap_or_else(|er| panic!("{}",er)).build();
       let mut data : Vec<u8> = Vec::new();
       book.to_buffer(&mut data);
+      if let Err(msg) = ensure_metal_runtime_available("run-metal") {
+        eprintln!("{msg}");
+        std::process::exit(1);
+      }
       #[cfg(feature = "metal")]
       unsafe {
-        hvm_mtl(data.as_mut_ptr() as *mut u32);
+        let status = hvm_mtl(data.as_ptr() as *const u32);
+        if status != 0 {
+          std::process::exit(status);
+        }
       }
       #[cfg(not(feature = "metal"))]
-      println!(
-        "Metal runtime not available!\n If you're on macOS and have Xcode command line tools installed, please reinstall HVM."
-      );
+      unreachable!("metal runtime preflight should have exited");
     }
     Some(("gen-c", sub_matches)) => {
       // Reads book from file
@@ -190,6 +195,11 @@ fn main() {
       println!("{}", hvm_cu);
     }
     Some(("gen-metal", sub_matches)) => {
+      if let Err(msg) = ensure_metal_runtime_available("gen-metal") {
+        eprintln!("{msg}");
+        std::process::exit(1);
+      }
+
       // Reads book from file
       let file = sub_matches.get_one::<String>("file").expect("required");
       let code = fs::read_to_string(file).expect("Unable to read file");
@@ -217,8 +227,7 @@ fn main() {
          {}\n\n\
          {}\n\n\
          int main() {{\n\
-           hvm_mtl((const u32*)BOOK_BUF);\n\
-           return 0;\n\
+           return hvm_mtl((const u32*)BOOK_BUF);\n\
          }}",
         metal_src, bookb, runtime
       );
@@ -227,6 +236,24 @@ fn main() {
     }
     _ => unreachable!(),
   }
+}
+
+fn ensure_metal_runtime_available(command: &str) -> Result<(), String> {
+  if !cfg!(target_os = "macos") || !cfg!(target_arch = "aarch64") {
+    let fallback = if command.starts_with("run-") { "run-c" } else { "gen-c" };
+    return Err(format!(
+      "`{command}` currently supports only Apple Silicon on macOS.\nUse `hvm {fallback}` on this host."
+    ));
+  }
+
+  if !cfg!(feature = "metal") {
+    return Err(format!(
+      "`{command}` is unavailable because this HVM binary was built without Metal runtime support.\n\
+       Install Xcode Command Line Tools and rebuild HVM."
+    ));
+  }
+
+  Ok(())
 }
 
 pub fn run(book: &hvm::Book) {
