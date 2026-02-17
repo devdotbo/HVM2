@@ -6,6 +6,8 @@ fn main() {
   println!("cargo:rerun-if-changed=src/hvm.c");
   println!("cargo:rerun-if-changed=src/run.cu");
   println!("cargo:rerun-if-changed=src/hvm.cu");
+  println!("cargo:rerun-if-changed=src/run.metal.mm");
+  println!("cargo:rerun-if-changed=src/hvm.metal");
   println!("cargo:rustc-link-arg=-rdynamic");
 
   match cc::Build::new()
@@ -43,5 +45,40 @@ fn main() {
   }
   else {
     println!("cargo:warning=\x1b[1m\x1b[31mWARNING: CUDA compiler not found.\x1b[0m \x1b[1mHVM will not be able to run on GPU.\x1b[0m");
+  }
+
+  if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
+    let has_metal = std::process::Command::new("xcrun")
+      .args(["--sdk", "macosx", "metal", "-v"])
+      .stdout(std::process::Stdio::null())
+      .stderr(std::process::Stdio::null())
+      .status()
+      .is_ok();
+
+    if has_metal {
+      println!("cargo:rustc-link-lib=framework=Foundation");
+      println!("cargo:rustc-link-lib=framework=Metal");
+
+      match cc::Build::new()
+        .cpp(true)
+        .file("src/run.metal.mm")
+        .flag("-std=c++17")
+        .flag("-fobjc-arc")
+        .warnings(false)
+        .try_compile("hvm-metal")
+      {
+        Ok(_) => println!("cargo:rustc-cfg=feature=\"metal\""),
+        Err(e) => {
+          println!("cargo:warning=\x1b[1m\x1b[31mWARNING: Failed to compile/run.metal.mm:\x1b[0m {}", e);
+          println!(
+            "cargo:warning=Ignoring/run.metal.mm and proceeding with build. \x1b[1mThe Metal runtime will not be available.\x1b[0m"
+          );
+        }
+      }
+    } else {
+      println!(
+        "cargo:warning=\x1b[1m\x1b[31mWARNING: Metal toolchain not found.\x1b[0m \x1b[1mHVM will not be able to run on Metal.\x1b[0m"
+      );
+    }
   }
 }
