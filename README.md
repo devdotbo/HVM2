@@ -45,7 +45,7 @@ hvm run-cu <file.hvm> # interpret via CUDA
 hvm run-metal <file.hvm> # interpret via Metal
 hvm gen-c  <file.hvm> # compile to standalone C
 hvm gen-cu <file.hvm> # compile to standalone CUDA
-hvm gen-metal <file.hvm> # compile to standalone Metal Objective-C++
+hvm gen-metal <file.hvm> # compile to standalone C with embedded Metal shader source
 ```
 
 All modes produce the same output. The compiled modes require you to compile the

@@ -222,7 +222,7 @@ fn main() {
         .replace('\n', "\\n\"\n\"");
 
       let out = format!(
-        "#import <Foundation/Foundation.h>\n#import <Metal/Metal.h>\n\n\
+        "// Embedded Metal shader source for downstream toolchains.\n\
          static const char* HVM_METAL_SRC =\n\"{}\";\n\n\
          {}\n\n{}",
         metal_src, hvm_c, run_c
