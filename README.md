@@ -64,19 +64,27 @@ clang++ -x objective-c++ -std=c++17 -O3 -fobjc-arc generated.mm -framework Found
 Benchmarking Metal vs C
 -----------------------
 
-Use the benchmark harness below to compare `run-c` and `run-metal` on the same program:
+Use the benchmark harness below to compare `run-c` and `run-metal` on heavier, GPU-oriented workloads:
 
 ```sh
-scripts/bench-metal-vs-c.sh examples/sum_rec/main.hvm
+scripts/bench-metal-vs-c.sh
 ```
 
-Useful knobs:
+The default `realistic` preset runs:
+
+- `examples/sum_rec/main.hvm`
+- `examples/sort_bitonic/main.hvm`
+- `benchmarks/metal/sum_tree_depth18.hvm`
+
+Useful knobs and presets:
 
 ```sh
-REPEATS=3 WARMUP=0 scripts/bench-metal-vs-c.sh tests/programs/hello-world.hvm
+REPEATS=1 WARMUP=0 scripts/bench-metal-vs-c.sh --preset realistic
+RUN_TIMEOUT=30 scripts/bench-metal-vs-c.sh --preset stress
+scripts/bench-metal-vs-c.sh examples/sort_bitonic/main.hvm
 ```
 
-The script prints a markdown table with mean/median runtime and a `C/Metal` time ratio.
+The script prints a markdown table with backend status, mean/median runtime, and a `C/Metal` time ratio.
 
 Language
 --------
