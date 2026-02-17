@@ -43,3 +43,18 @@ jobs:
       - run: cargo test --release
         shell: bash -l {0}
 
+  test-metal:
+    needs: test
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-test-metal-${{ hashFiles('**/Cargo.lock') }}
+      - run: xcode-select -p
+      - run: cargo test --release

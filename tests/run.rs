@@ -62,6 +62,15 @@ fn test_file(path: &Path) {
       "{path:?}: CUDA output does not match rust output"
     );
   }
+
+  if cfg!(feature = "metal") {
+    println!("  testing {path:?}, Metal...");
+    let metal_output = execute_hvm(&["run-metal".as_ref(), path.as_os_str()], false).unwrap();
+    assert_eq!(
+      metal_output, rust_output,
+      "{path:?}: Metal output does not match rust output"
+    );
+  }
 }
 
 fn test_io_file(path: &Path) {
@@ -73,6 +82,12 @@ fn test_io_file(path: &Path) {
     println!("  testing (io) {path:?}, CUDA...");
     let cuda_output = execute_hvm(&["run-cu".as_ref(), path.as_os_str()], true).unwrap();
     assert_eq!(cuda_output, c_output, "{path:?}: CUDA output does not match C output");
+  }
+
+  if cfg!(feature = "metal") {
+    println!("  testing (io) {path:?}, Metal...");
+    let metal_output = execute_hvm(&["run-metal".as_ref(), path.as_os_str()], true).unwrap();
+    assert_eq!(metal_output, c_output, "{path:?}: Metal output does not match C output");
   }
 }
 

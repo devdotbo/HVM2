@@ -28,6 +28,7 @@ First install the dependencies:
 * If you want to use the C runtime, install a C-11 compatible compiler like GCC or Clang.
 * If you want to use the CUDA runtime, install CUDA and nvcc (the CUDA compiler).
   - _HVM requires CUDA 12.x and currently only works on Nvidia GPUs._
+* If you want to use the Metal runtime, use macOS on Apple Silicon with Xcode command line tools installed.
 
 Install HVM2:
 
@@ -41,8 +42,10 @@ There are multiple ways to run an HVM program:
 hvm run    <file.hvm> # interpret via Rust
 hvm run-c  <file.hvm> # interpret via C
 hvm run-cu <file.hvm> # interpret via CUDA
+hvm run-metal <file.hvm> # interpret via Metal
 hvm gen-c  <file.hvm> # compile to standalone C
 hvm gen-cu <file.hvm> # compile to standalone CUDA
+hvm gen-metal <file.hvm> # compile to standalone Metal Objective-C++
 ```
 
 All modes produce the same output. The compiled modes require you to compile the
