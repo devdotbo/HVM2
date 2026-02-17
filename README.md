@@ -61,6 +61,23 @@ For `gen-metal`, compile the generated file with:
 clang++ -x objective-c++ -std=c++17 -O3 -fobjc-arc generated.mm -framework Foundation -framework Metal -o generated
 ```
 
+Benchmarking Metal vs C
+-----------------------
+
+Use the benchmark harness below to compare `run-c` and `run-metal` on the same program:
+
+```sh
+scripts/bench-metal-vs-c.sh examples/sum_rec/main.hvm
+```
+
+Useful knobs:
+
+```sh
+REPEATS=3 WARMUP=0 scripts/bench-metal-vs-c.sh tests/programs/hello-world.hvm
+```
+
+The script prints a markdown table with mean/median runtime and a `C/Metal` time ratio.
+
 Language
 --------
 
