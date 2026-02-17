@@ -45,13 +45,19 @@ hvm run-cu <file.hvm> # interpret via CUDA
 hvm run-metal <file.hvm> # interpret via Metal
 hvm gen-c  <file.hvm> # compile to standalone C
 hvm gen-cu <file.hvm> # compile to standalone CUDA
-hvm gen-metal <file.hvm> # compile to standalone C with embedded Metal shader source
+hvm gen-metal <file.hvm> # compile to standalone Objective-C++ with native Metal compute runtime
 ```
 
 All modes produce the same output. The compiled modes require you to compile the
 generated file (with `gcc file.c -o file`, for example), but are faster to run.
 The CUDA versions have much higher peak performance but are less stable. As a
 rule of thumb, `gen-c` should be used in production.
+
+For `gen-metal`, compile the generated file with:
+
+```sh
+clang++ -x objective-c++ -std=c++17 -O3 -fobjc-arc generated.mm -framework Foundation -framework Metal -o generated
+```
 
 Language
 --------

@@ -11,7 +11,9 @@
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
 
+#ifndef HVM_GEN_STANDALONE
 #include "hvm_metal_lib.h"
+#endif
 
 using u8 = uint8_t;
 using u32 = uint32_t;
@@ -543,6 +545,8 @@ extern "C" void hvm_mtl(const u32* book_buffer) {
     }
 
     NSError* error = nil;
+    id<MTLLibrary> library = nil;
+#ifndef HVM_GEN_STANDALONE
     dispatch_data_t lib_data = dispatch_data_create(
       HVM_METAL_LIB,
       HVM_METAL_LIB_LEN,
@@ -550,11 +554,24 @@ extern "C" void hvm_mtl(const u32* book_buffer) {
       DISPATCH_DATA_DESTRUCTOR_DEFAULT
     );
 
-    id<MTLLibrary> library = [device newLibraryWithData:lib_data error:&error];
+    library = [device newLibraryWithData:lib_data error:&error];
     if (!library) {
       std::fprintf(stderr, "Metal runtime failed to load embedded library: %s\n", [[error localizedDescription] UTF8String]);
       return;
     }
+#else
+    NSString* source = [NSString stringWithUTF8String:HVM_METAL_SRC];
+    if (!source) {
+      std::fprintf(stderr, "Metal runtime failed to decode embedded shader source.\n");
+      return;
+    }
+    MTLCompileOptions* opts = [[MTLCompileOptions alloc] init];
+    library = [device newLibraryWithSource:source options:opts error:&error];
+    if (!library) {
+      std::fprintf(stderr, "Metal runtime failed to compile embedded source: %s\n", [[error localizedDescription] UTF8String]);
+      return;
+    }
+#endif
 
     id<MTLFunction> kernel = [library newFunctionWithName:@"hvm_eval"];
     if (!kernel) {
